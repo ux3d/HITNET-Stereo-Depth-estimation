@@ -1,12 +1,12 @@
 import cv2
-import tensorflow as tf
 import numpy as np
+from pathlib import Path
 
 from hitnet import HitNet, ModelType, draw_disparity, draw_depth, CameraConfig, load_img
 
 # Select model type
-# model_type = ModelType.middlebury
-# model_type = ModelType.flyingthings
+#model_type = ModelType.middlebury
+#model_type = ModelType.flyingthings
 model_type = ModelType.eth3d
 
 if model_type == ModelType.middlebury:
@@ -20,20 +20,28 @@ elif model_type == ModelType.eth3d:
 # Initialize model
 hitnet_depth = HitNet(model_path, model_type)
 
-# Load images
-left_img = load_img("https://vision.middlebury.edu/stereo/data/scenes2003/newdata/cones/im2.png")
-right_img = load_img("https://vision.middlebury.edu/stereo/data/scenes2003/newdata/cones/im6.png")
+input_folder = Path("./data")
 
-# Estimate the depth
-disparity_map = hitnet_depth(left_img, right_img)
+output_folder = Path("./result")
 
-color_disparity = draw_disparity(disparity_map)
-cobined_image = np.hstack((left_img, right_img, color_disparity))
+output_folder.mkdir(parents=True, exist_ok=True)
 
-cv2.namedWindow("Estimated disparity", cv2.WINDOW_NORMAL)	
-cv2.imshow("Estimated disparity", cobined_image)
-cv2.waitKey(0)
+image_list_left = sorted((input_folder/"left").glob("*.png"))
+image_list_right = sorted((input_folder/"right").glob("*.png"))
 
-cv2.imwrite("out.jpg", cobined_image)
+for x in range(0, len(image_list_left)):
 
-cv2.destroyAllWindows()
+	# Load images
+	left_img = open(image_list_left[x], "rb")
+	left_img = np.asarray(bytearray(left_img.read()), dtype=np.uint8)
+	left_img = cv2.imdecode(left_img, -1) # 'Load it as it is'
+	right_img = open(image_list_right[x], "rb")
+	right_img = np.asarray(bytearray(right_img.read()), dtype=np.uint8)
+	right_img = cv2.imdecode(right_img, -1) # 'Load it as it is'
+
+	# Estimate the depth
+	disparity_map = hitnet_depth(left_img, right_img)
+
+	color_disparity = draw_disparity(disparity_map)
+
+	cv2.imwrite(str(output_folder / image_list_left[x].name), color_disparity)
